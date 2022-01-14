@@ -1,0 +1,55 @@
+name: GitHub Classroom Workflow
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+jobs:
+  build:
+    name: Autograding
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+#        with:
+#          fetch-depth: 0
+
+      # TODO build, test and deploy project
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+
+      - name: Build Gateway
+        run: mvn --batch-mode --update-snapshots verify -f Gateway
+
+      - name: Deploy Gateway to Heroku
+        uses: AkhileshNS/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+          heroku_email: domanovkon@gmail.com
+          heroku_app_name: lab2-gateway-service
+          usedocker: true
+          appdir: Gateway
+
+      - name: Sleep for 20s
+        uses: juliangruber/sleep-action@v1
+        with:
+            time: 20s
+
+      - name: Run API Tests
+        uses: matt-ball/newman-action@master
+        with:
+          # TODO insert your <Variant> and <ServiceName>
+          collection: v1/postman/[rsoi] postman_collection.json
+          environment: v1/postman/[rsoi][heroku] postman_environment.json
+          delayRequest: 100
+          reporters: '[ "cli" ]'
+          envVar: '[{ "key":"serviceName", "value":"lab2-bonus-service" }, { "key":"herokuApiToken", "value":"${{secrets.HEROKU_API_KEY}}" }]'
+
+      - uses: education/autograding@v1
+        id: autograder
+        continue-on-error: true
